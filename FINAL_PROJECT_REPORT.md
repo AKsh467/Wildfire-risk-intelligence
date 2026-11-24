@@ -176,42 +176,45 @@ The architecture is structured into a modular pipeline where data progresses fro
 
 ```mermaid
 flowchart TD
-    subgraph Data Sources
-        S1["NASA FIRMS VIIRS S-NPP (375m)"]
-        S2["NASA POWER Daily Agroclimatology"]
-        S3["NASA FIRMS NRT 24h Live Stream"]
+    subgraph S1 ["1. Data Sources"]
+        D_S1["NASA FIRMS VIIRS S-NPP (375m)"]
+        D_S2["NASA POWER Daily Agroclimatology"]
+        D_S3["NASA FIRMS NRT 24h Live Stream"]
     end
 
-    subgraph Distributed Processing Engine (PySpark)
-        E1["hotspot_etl.py: Spatial Filter (6-38N, 68-98E) & 0.25 Grid Discretization"]
-        E2["weather_etl.py: Bounds Validation & Distributed Missing-Value Imputation"]
-        E3["spatial_temporal_join.py: Distributed Left Outer Join (33.6M Cells)"]
-        S1 --> E1
-        S2 --> E2
-        E1 & E2 --> E3
+    subgraph S2 ["2. Distributed PySpark Engine"]
+        D_E1["hotspot_etl.py: Spatial Filter & 0.25 Grid Discretization"]
+        D_E2["weather_etl.py: Bounds Validation & Imputation"]
+        D_E3["spatial_temporal_join.py: Distributed Left Outer Join (33.6M Cells)"]
+        D_S1 --> D_E1
+        D_S2 --> D_E2
+        D_E1 --> D_E3
+        D_E2 --> D_E3
     end
 
-    subgraph Feature Engineering
-        F1["feature_engineering.py: Tetens VPD, Angstrom Index, Dry Days, Antecedent Rain Lags"]
-        E3 --> F1
+    subgraph S3 ["3. Feature Engineering"]
+        D_F1["feature_engineering.py: Tetens VPD, Angstrom Index, Dry Days"]
+        D_E3 --> D_F1
     end
 
-    subgraph Machine Learning Pipeline
-        M1["train.py: 5-Fold Spatial Block Cross-Validation"]
-        M2["evaluate.py: PR-AUC, ROC-AUC, Brier Score, Feature Importances"]
-        M3["predict.py: Two-Stage Relative Risk Inference Engine"]
-        F1 --> M1 --> M2 --> M3
+    subgraph S4 ["4. Machine Learning Pipeline"]
+        D_M1["train.py: 5-Fold Spatial Block Cross-Validation"]
+        D_M2["evaluate.py: PR-AUC, ROC-AUC, Brier Score"]
+        D_M3["predict.py: Calibrated Risk Inference Engine"]
+        D_F1 --> D_M1
+        D_M1 --> D_M2
+        D_M2 --> D_M3
     end
 
-    subgraph Decision Support System (Node.js Interface)
-        UI1["Geospatial Map (Leaflet.js + Live NRT Toggle)"]
-        UI2["7 Scientific Diagnostic Visualizations (Chart.js)"]
-        UI3["Interactive Weather Risk Simulator (Dynamic Sliders)"]
-        UI4["Operational Prevention & Incident SOPs Framework"]
-        S3 --> UI1
-        M3 --> UI3
-        M2 --> UI2
-        UI3 --> UI4
+    subgraph S5 ["5. Decision Support System (Node.js Interface)"]
+        D_UI1["Geospatial Map (Leaflet.js + Live NRT Toggle)"]
+        D_UI2["7 Scientific Diagnostic Visualizations"]
+        D_UI3["Interactive Weather Risk Simulator"]
+        D_UI4["Operational Prevention SOPs Framework"]
+        D_S3 --> D_UI1
+        D_M3 --> D_UI3
+        D_M2 --> D_UI2
+        D_UI3 --> D_UI4
     end
 ```
 
@@ -245,12 +248,13 @@ The implementation follows a structured 7-phase methodology:
 ### 2.5 Methodology Workflow & Data Flow Diagram (DFD)
 
 ```mermaid
-graph TD
+flowchart TD
     A["Raw VIIRS Satellite Detections (CSV)"] --> B["Spatial Filter (6-38N, 68-98E)"]
     C["Raw NASA POWER Weather (API/CSV)"] --> D["Physical Bounds Validation & Cleaning"]
     B --> E["Grid Centroid Assignment (0.25 deg)"]
     D --> F["Weather Space-Time Grid (0.25 deg x Daily)"]
-    E & F --> G["PySpark Distributed Left Outer Join"]
+    E --> G["PySpark Distributed Left Outer Join"]
+    F --> G
     G --> H["Analytical Base Table (ABT): 33.6M Cell Universe"]
     H --> I["Feature Engineering (VPD, Angstrom, Dry Spell, Lags)"]
     I --> J["5-Fold Spatial Block Split (Held-out Geographic Tiles)"]

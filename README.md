@@ -57,37 +57,41 @@ Wildfires and biomass burning represent dynamic earth system phenomena driven by
 
 ## 4. System Architecture
 
+![End-to-End System Architecture](figures/fig1_system_architecture.png)
+
 ```mermaid
 flowchart TD
-    subgraph Data Ingestion
-        A[NASA FIRMS CSVs<br/>VIIRS S-NPP 375m] --> D1[firms_loader.py]
-        B[NASA POWER API<br/>Daily Climatology] --> D2[power_api_client.py]
+    subgraph S1 ["1. Data Ingestion Tier"]
+        A["NASA FIRMS Active Fires<br/>(VIIRS S-NPP 375m)"] --> D1["firms_loader.py"]
+        B["NASA POWER Meteorology<br/>(Daily Climatology)"] --> D2["power_api_client.py"]
     end
 
-    subgraph Distributed Processing Engine PySpark
-        D1 --> E1[hotspot_etl.py<br/>Spatial Filter & QA]
-        D2 --> E2[weather_etl.py<br/>Aggregation & Imputation]
-        E1 & E2 --> E3[spatial_temporal_join.py<br/>Grid Binning 0.25 deg x Daily]
+    subgraph S2 ["2. Distributed Spark Core"]
+        D1 --> E1["hotspot_etl.py<br/>(Spatial Filter & QA)"]
+        D2 --> E2["weather_etl.py<br/>(Imputation & Rolling)"]
+        E1 --> E3["spatial_temporal_join.py<br/>(0.25° Grid Snapping)"]
+        E2 --> E3
     end
 
-    subgraph Feature Engineering
-        E3 --> F1[feature_engineering.py<br/>Lags, Dry Spells, VPD, Rolling Weather]
+    subgraph S3 ["3. Feature Store"]
+        E3 --> F1["feature_engineering.py<br/>(Tetens VPD, Angstrom, Lags)"]
     end
 
-    subgraph Machine Learning Pipeline
-        F1 --> G1[train.py<br/>Spatial Block CV & Ensembles]
-        G1 --> G2[evaluate.py<br/>ROC-AUC, PR-AUC, Calibration]
-        G1 --> G3[predict.py<br/>Relative Risk Inference]
-        G1 --> M[(Serialized Models<br/>models/)]
+    subgraph S4 ["4. Machine Learning Pipeline"]
+        F1 --> G1["train.py<br/>(5-Fold Spatial Block CV)"]
+        G1 --> G2["evaluate.py<br/>(ROC-AUC, PR-AUC, Calibration)"]
+        G1 --> G3["predict.py<br/>(Calibrated Risk Inference)"]
+        G1 --> M[("Serialized Models<br/>(models/)")]
     end
 
-    subgraph Interactive Analytics Dashboard Streamlit
-        M & G3 --> H[streamlit_app.py]
+    subgraph S5 ["5. Full-Stack Web DSS"]
+        M --> H["Node.js Server (web/server.js)"]
+        G3 --> H
         F1 --> H
-        H --> P1[Page 1: Hotspot Explorer]
-        H --> P2[Page 2: Climatology & Lags]
-        H --> P3[Page 3: Risk Inference Engine]
-        H --> P4[Page 4: Academic Methodology]
+        H --> P1["Geospatial Leaflet Map"]
+        H --> P2["Planck Anomaly Analytics"]
+        H --> P3["Real-Time Risk Simulator"]
+        H --> P4["Decision Support SOPs"]
     end
 ```
 
