@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Cloudflare binary
+cloudflared.exe
+cloudflared
+
 # Virtual environments
 venv/
 .venv/
