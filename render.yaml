@@ -1,13 +1,11 @@
 services:
   - type: web
     name: wildfire-risk-intelligence
-    runtime: node
+    env: node
     plan: free
     region: oregon
-    buildCommand: ""
-    startCommand: "node web/server.js"
+    buildCommand: "npm install"
+    startCommand: "npm start"
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 10000
