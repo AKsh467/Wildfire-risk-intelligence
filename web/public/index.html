@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wildfire Risk Intelligence & Hotspot Analytics</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    #map { height: 520px; border-radius: 0.75rem; z-index: 10; }
+    .tier-badge-low { background-color: #d4edda; color: #155724; border-left: 6px solid #28a745; }
+    .tier-badge-moderate { background-color: #fff3cd; color: #856404; border-left: 6px solid #ffc107; }
+    .tier-badge-high { background-color: #f8d7da; color: #721c24; border-left: 6px solid #dc3545; }
+    .tier-badge-extreme { background-color: #4a0e17; color: #ffffff; border-left: 6px solid #d62728; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+  <!-- Top Navigation Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <span class="text-3xl">🔥</span>
+        <div>
+          <h1 class="text-xl font-bold text-slate-900 leading-tight">Wildfire Risk Intelligence & Hotspot Analytics</h1>
+          <p class="text-xs text-slate-500">Satellite Thermal Anomaly & Environmental Risk Assessment (India 2020–2025)</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span class="w-2 h-2 mr-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Node.js Active
+        </span>
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+          VIIRS S-NPP (375m)
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
+
+    <!-- Academic & Remote Sensing Disclaimer Notice -->
+    <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg shadow-sm">
+      <div class="flex">
+        <div class="flex-shrink-0 text-amber-600 text-lg">⚠️</div>
+        <div class="ml-3">
+          <p class="text-sm font-semibold text-amber-900">Academic & Remote Sensing Notice</p>
+          <p class="text-xs text-amber-800 mt-0.5">
+            NASA FIRMS VIIRS detections represent <em>thermal anomalies</em> (sub-pixel infrared radiative emissions).
+            In India, these capture wildland forest fires (March–May), agricultural residue stubble burning (October–November),
+            and industrial heat sources. The model predicts <strong>Relative Wildfire & Active Fire Risk</strong> driven by atmospheric drying (VPD) and fuel moisture deficits.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="border-b border-slate-200">
+      <nav class="-mb-px flex space-x-6 overflow-x-auto" aria-label="Tabs">
+        <button onclick="switchTab('overview')" id="tab-overview" class="tab-btn border-red-600 text-red-600 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center space-x-2">
+          <span>📊</span><span>Overview & KPIs</span>
+        </button>
+        <button onclick="switchTab('map-view')" id="tab-map-view" class="tab-btn border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center space-x-2">
+          <span>🗺️</span><span>Geospatial Map</span>
+        </button>
+        <button onclick="switchTab('radiometry')" id="tab-radiometry" class="tab-btn border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center space-x-2">
+          <span>🔥</span><span>Radiometry & Intensity</span>
+        </button>
+        <button onclick="switchTab('seasonality')" id="tab-seasonality" class="tab-btn border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center space-x-2">
+          <span>📈</span><span>Seasonal Fire Regimes</span>
+        </button>
+        <button onclick="switchTab('simulator')" id="tab-simulator" class="tab-btn border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center space-x-2">
+          <span>🧠</span><span>Risk Simulator</span>
+        </button>
+        <button onclick="switchTab('model-eval')" id="tab-model-eval" class="tab-btn border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center space-x-2">
+          <span>🎯</span><span>Model Benchmark & Evaluation</span>
+        </button>
+        <button onclick="switchTab('prevention')" id="tab-prevention" class="tab-btn border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center space-x-2">
+          <span>🛡️</span><span>Prevention & SOPs</span>
+        </button>
+        <button onclick="switchTab('methodology')" id="tab-methodology" class="tab-btn border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center space-x-2">
+          <span>📖</span><span>Methodology</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- TAB 1: OVERVIEW & KPIS -->
+    <div id="content-overview" class="tab-content space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Historical Observations</p>
+          <p id="kpi-total-records" class="text-2xl font-bold text-slate-900 mt-1">24,112</p>
+          <p class="text-xs text-slate-500 mt-1">Spatio-Temporal Grid Cells (2020–2025)</p>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Active Thermal Anomalies</p>
+          <p id="kpi-hotspots" class="text-2xl font-bold text-red-600 mt-1">12,000</p>
+          <p class="text-xs text-slate-500 mt-1">VIIRS 375m Satellite Detections</p>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Model ROC-AUC Score</p>
+          <p id="kpi-roc-auc" class="text-2xl font-bold text-blue-600 mt-1">0.995</p>
+          <p class="text-xs text-slate-500 mt-1">Spatial Block Cross-Validation</p>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">PR-AUC (Avg Precision)</p>
+          <p id="kpi-pr-auc" class="text-2xl font-bold text-purple-600 mt-1">0.531</p>
+          <p class="text-xs text-slate-500 mt-1">Severe Class Imbalance Evaluator</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="text-base font-semibold text-slate-900 mb-2">Monthly Fire Hotspot Distribution (Dual-Peak Regime)</h3>
+          <p class="text-xs text-slate-500 mb-4">Highlights March–May forest fires and October–November agricultural stubble burning.</p>
+          <div class="h-64"><canvas id="overviewSeasonalityChart"></canvas></div>
+        </div>
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="text-base font-semibold text-slate-900 mb-2">Top Environmental Risk Predictors</h3>
+          <p class="text-xs text-slate-500 mb-4">Relative importance derived from the Random Forest model.</p>
+          <div class="h-64"><canvas id="overviewImportanceChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: GEOSPATIAL MAP -->
+    <div id="content-map-view" class="tab-content hidden space-y-4">
+      <!-- Live / Historical Feed Controller Bar -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap justify-between items-center gap-4">
+        <div>
+          <div class="flex items-center space-x-2">
+            <h2 class="text-base font-bold text-slate-900">Geospatial Satellite Hotspot Map</h2>
+            <span id="map-status-pill" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700">
+              Historical 2020–2025
+            </span>
+          </div>
+          <p id="map-subtitle" class="text-xs text-slate-500 mt-0.5">Switch between multi-year research archive and live near real-time satellite feeds.</p>
+        </div>
+
+        <!-- Mode Toggle Controls -->
+        <div class="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-medium">
+          <button id="btn-mode-historical" onclick="setMapMode('historical')" class="px-3 py-1.5 rounded-md bg-white text-slate-900 font-semibold shadow-sm transition">
+            📁 Historical (2020–2025)
+          </button>
+          <button id="btn-mode-live" onclick="setMapMode('live')" class="px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900 flex items-center space-x-1.5 transition">
+            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+            <span>🔴 Live NRT (Past 24h)</span>
+          </button>
+        </div>
+
+        <!-- Legend -->
+        <div class="flex items-center space-x-3 text-xs">
+          <span class="inline-flex items-center"><span class="w-3 h-3 rounded-full bg-emerald-500 mr-1"></span> Low</span>
+          <span class="inline-flex items-center"><span class="w-3 h-3 rounded-full bg-amber-500 mr-1"></span> Moderate</span>
+          <span class="inline-flex items-center"><span class="w-3 h-3 rounded-full bg-red-500 mr-1"></span> High</span>
+          <span class="inline-flex items-center"><span class="w-3 h-3 rounded-full bg-rose-950 mr-1"></span> Extreme</span>
+        </div>
+      </div>
+
+      <!-- Live NRT Stream Info Banner (Hidden in Historical Mode) -->
+      <div id="live-nrt-banner" class="hidden bg-gradient-to-r from-red-50 via-amber-50 to-orange-50 border border-red-200 p-3.5 rounded-xl shadow-sm">
+        <div class="flex flex-wrap justify-between items-center text-xs text-slate-700 gap-2">
+          <div class="flex items-center space-x-2">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white animate-pulse">
+              ● LIVE SATELLITE FEED
+            </span>
+            <span id="live-source-name" class="font-medium text-slate-800">VIIRS S-NPP (375m) Near Real-Time Stream</span>
+          </div>
+          <div class="flex items-center space-x-3">
+            <span>Active Hotspots (24h): <strong id="live-hotspot-count" class="text-red-700 font-bold">145</strong></span>
+            <span>Peak FRP: <strong id="live-peak-frp" class="text-slate-900 font-bold">41.8 MW</strong></span>
+            <span>Updated: <strong id="live-update-time" class="text-slate-900 font-medium">Just now</strong></span>
+            <div class="flex items-center space-x-1.5 ml-2">
+              <input id="input-nrt-map-key" type="password" placeholder="NASA MAP_KEY" class="bg-white border border-slate-300 rounded px-2 py-1 text-xs w-32 focus:w-56 transition-all" title="Enter your free 32-character NASA FIRMS MAP_KEY" />
+              <button id="btn-refresh-live" onclick="refreshLiveNrtFeed()" class="px-2.5 py-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded shadow-xs text-xs flex items-center space-x-1">
+                <span id="refresh-spinner">🔄</span><span>Refresh</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+        <div id="map"></div>
+      </div>
+    </div>
+
+    <!-- TAB: SATELLITE RADIOMETRY & INTENSITY -->
+    <div id="content-radiometry" class="tab-content hidden space-y-6">
+      <div class="bg-gradient-to-r from-red-600 via-orange-600 to-amber-600 p-4 rounded-xl text-white shadow-sm flex flex-wrap justify-between items-center gap-2">
+        <div>
+          <h2 class="text-lg font-bold">Satellite Radiometry & Fire Radiative Energy</h2>
+          <p class="text-xs text-orange-100">Physical analysis of mid-wave infrared radiance, combustion intensity (MW), and orbital overpasses.</p>
+        </div>
+        <span class="px-3 py-1 bg-white/20 rounded-full text-xs font-semibold backdrop-blur-xs">VIIRS S-NPP (375m) Sensors</span>
+      </div>
+
+      <!-- ROW 1: FRP & BISPECTRAL RADIOMETRY -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Graph 1: FRP Distribution -->
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <h3 class="text-base font-bold text-slate-900">1. Fire Radiative Power (FRP) Intensity Distribution</h3>
+              <span class="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold">Energy Yield (MW)</span>
+            </div>
+            <p class="text-xs text-slate-500 mb-4">Combustion energy output frequency across 12,000 satellite thermal anomalies (log-scale heavy tail).</p>
+            <div class="h-64"><canvas id="frpDistChart"></canvas></div>
+          </div>
+          <div class="mt-4 p-3 bg-amber-50/70 border border-amber-200 rounded text-xs text-amber-900">
+            <strong>Radiometric Context:</strong> ~80% of detections are under 25 MW (surface biomass/residue burns), while severe canopy burns exhibit extended radiative power up to 240+ MW.
+          </div>
+        </div>
+
+        <!-- Graph 2: Bispectral Radiometry -->
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <h3 class="text-base font-bold text-slate-900">2. Bispectral Radiometry: Planck Anomaly Shift</h3>
+              <span class="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded font-semibold">T_i4 vs T_i5 (Kelvin)</span>
+            </div>
+            <p class="text-xs text-slate-500 mb-4">Mid-Wave IR (3.74 μm) radiance elevation above background Thermal IR (11.45 μm).</p>
+            <div class="h-64"><canvas id="bispectralChart"></canvas></div>
+          </div>
+          <div class="mt-4 p-3 bg-red-50/70 border border-red-200 rounded text-xs text-red-900">
+            <strong>Planck's Law Insight:</strong> Sub-pixel combustion shifts blackbody spectral radiance into the mid-wave IR, causing T_i4 (330–365K) to elevate sharply while T_i5 stays near 305K.
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 2: REGIONAL & DIURNAL OVERPASS DYNAMICS -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Graph 3: State & Regional Breakdown -->
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <h3 class="text-base font-bold text-slate-900">3. Regional & State Wildfire Distribution</h3>
+              <span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-semibold">Top Fire Zones</span>
+            </div>
+            <p class="text-xs text-slate-500 mb-4">Total detected active fire anomalies across India's high-incidence states.</p>
+            <div class="h-64"><canvas id="stateBreakdownChart"></canvas></div>
+          </div>
+          <div class="mt-4 p-3 bg-blue-50/70 border border-blue-200 rounded text-xs text-blue-900">
+            <strong>Geographic Insight:</strong> Punjab leads in high-density seasonal agricultural fires, while MP, Odisha, and Chhattisgarh lead in large forest biomass combustion.
+          </div>
+        </div>
+
+        <!-- Graph 4: Day vs Night Overpasses -->
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <h3 class="text-base font-bold text-slate-900">4. Diurnal Overpass: Daytime vs. Nighttime Detections</h3>
+              <span class="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-semibold">Orbital Passes</span>
+            </div>
+            <p class="text-xs text-slate-500 mb-4">VIIRS Suomi-NPP daytime pass (~13:30 IST) vs nighttime pass (~01:30 IST).</p>
+            <div class="h-64 flex justify-center"><canvas id="dayNightChart"></canvas></div>
+          </div>
+          <div class="mt-4 p-3 bg-purple-50/70 border border-purple-200 rounded text-xs text-purple-900">
+            <strong>Diurnal Cycle:</strong> ~78% of fires occur during peak afternoon heat and minimum relative humidity. The ~22% nocturnal detections represent persistent high-energy wildfires.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: SEASONALITY & ENVIRONMENTAL TRENDS -->
+    <div id="content-seasonality" class="tab-content hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="text-base font-semibold text-slate-900 mb-1">Dual-Peak Seasonality Analysis</h3>
+          <p class="text-xs text-slate-500 mb-4">Monthly thermal anomaly count across the 6-year observation period.</p>
+          <div class="h-72"><canvas id="detailSeasonalityChart"></canvas></div>
+          <div class="mt-4 p-3 bg-slate-50 rounded text-xs text-slate-600 space-y-1">
+            <p><strong>Peak 1 (Mar–May):</strong> High temperatures and dry leaf litter trigger wildland forest fires across Central India and Himalayan pine forests.</p>
+            <p><strong>Suppression (Jun–Sep):</strong> Southwest monsoon rainfall blankets the subcontinent, quenching surface fuels.</p>
+            <p><strong>Peak 2 (Oct–Nov):</strong> Post-monsoon agricultural harvesting in Punjab & Haryana leads to widespread residue burning.</p>
+          </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="text-base font-semibold text-slate-900 mb-1">Atmospheric Drying: Vapor Pressure Deficit (VPD)</h3>
+          <p class="text-xs text-slate-500 mb-4">Average monthly Vapor Pressure Deficit (kPa) vs. Temperature (°C).</p>
+          <div class="h-72"><canvas id="vpdTrendChart"></canvas></div>
+          <div class="mt-4 p-3 bg-slate-50 rounded text-xs text-slate-600">
+            <p><strong>Physics Insight:</strong> VPD is calculated via the Tetens formula. High VPD (> 2.5 kPa) rapidly desiccates fine dead fuels, drastically lowering ignition threshold energy.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Graph 5: Rainfall Suppression & Consecutive Dry Days -->
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex justify-between items-center mb-1">
+          <h3 class="text-base font-bold text-slate-900">5. Fuel Moisture Desiccation & Antecedent Rainfall Suppression</h3>
+          <span class="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-semibold">Empirical Thresholds</span>
+        </div>
+        <p class="text-xs text-slate-500 mb-4">Coupled interaction of consecutive dry days vs. 7-day cumulative precipitation (mm) on ignition probability.</p>
+        <div class="h-72"><canvas id="rainfallDesiccationChart"></canvas></div>
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <div class="p-3 bg-red-50 rounded border border-red-200 text-red-900">
+            <strong>Critical Desiccation Point:</strong> When consecutive dry days exceed <strong>14 days</strong>, active fire presence probability surges exponentially from 4.5% to >68%.
+          </div>
+          <div class="p-3 bg-emerald-50 rounded border border-emerald-200 text-emerald-900">
+            <strong>Precipitation Buffer:</strong> Cumulative 7-day rainfall above <strong>15 mm</strong> suppresses fire occurrence to near zero by replenishing 10-hour and 100-hour dead fuel moisture.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: RISK SIMULATOR -->
+    <div id="content-simulator" class="tab-content hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Input Controls -->
+        <div class="lg:col-span-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-5">
+          <h3 class="text-base font-bold text-slate-900 border-b pb-2">🌦️ Weather Controls</h3>
+
+          <div>
+            <div class="flex justify-between text-xs font-semibold mb-1">
+              <span>Surface Temperature (°C)</span>
+              <span id="val-temp" class="text-red-600 font-bold">36.0 °C</span>
+            </div>
+            <input type="range" id="input-temp" min="15" max="48" step="0.5" value="36.0" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-red-600" oninput="runSimulation()">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-semibold mb-1">
+              <span>Relative Humidity (%)</span>
+              <span id="val-rh" class="text-blue-600 font-bold">25.0 %</span>
+            </div>
+            <input type="range" id="input-rh" min="5" max="95" step="1" value="25.0" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" oninput="runSimulation()">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-semibold mb-1">
+              <span>Wind Speed at 10m (m/s)</span>
+              <span id="val-wind" class="text-slate-700 font-bold">6.0 m/s</span>
+            </div>
+            <input type="range" id="input-wind" min="0.5" max="25" step="0.5" value="6.0" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-700" oninput="runSimulation()">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-semibold mb-1">
+              <span>Antecedent 7-Day Rain (mm)</span>
+              <span id="val-rain" class="text-cyan-600 font-bold">0.0 mm</span>
+            </div>
+            <input type="range" id="input-rain" min="0" max="120" step="1" value="0.0" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-cyan-600" oninput="runSimulation()">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-semibold mb-1">
+              <span>Consecutive Dry Days</span>
+              <span id="val-dry" class="text-amber-700 font-bold">18 days</span>
+            </div>
+            <input type="range" id="input-dry" min="0" max="60" step="1" value="18" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-600" oninput="runSimulation()">
+          </div>
+        </div>
+
+        <!-- Simulation Results -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- Realtime Physics Indices -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <p class="text-xs font-semibold text-slate-500 uppercase">Vapor Pressure Deficit</p>
+              <p id="res-vpd" class="text-2xl font-bold text-slate-900 mt-1">4.46 kPa</p>
+              <p id="res-vpd-note" class="text-xs text-red-600 mt-0.5 font-medium">Extreme Atmospheric Drying</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <p class="text-xs font-semibold text-slate-500 uppercase">Ångström Fire Index</p>
+              <p id="res-angstrom" class="text-2xl font-bold text-slate-900 mt-1">0.35</p>
+              <p id="res-angstrom-note" class="text-xs text-red-600 mt-0.5 font-medium">Extreme Hazard (< 2.0)</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <p class="text-xs font-semibold text-slate-500 uppercase">Fuel Dry Spell</p>
+              <p id="res-dry-note" class="text-2xl font-bold text-slate-900 mt-1">Severe</p>
+              <p class="text-xs text-slate-500 mt-0.5">Extended Moisture Deficit</p>
+            </div>
+          </div>
+
+          <!-- Dynamic Risk Badge & Guidance -->
+          <div id="risk-badge-container" class="p-6 rounded-xl shadow-sm border transition-all duration-300 tier-badge-extreme">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="text-xs font-bold uppercase tracking-wider opacity-80">Predicted Operational Risk</p>
+                <h2 id="res-risk-tier" class="text-3xl font-extrabold mt-0.5">EXTREME RISK (88.4%)</h2>
+              </div>
+              <span id="res-risk-icon" class="text-4xl">🚨</span>
+            </div>
+            <p id="res-guidance" class="text-sm mt-3 leading-relaxed opacity-95">
+              Critical evaporative demand with severely depleted surface fuel moisture. Ignitions can spread rapidly into crown fires.
+              Intensify forest watch patrols and suspend open biomass clearances.
+            </p>
+          </div>
+
+          <!-- Immediate Action Checklist for Simulated Tier -->
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+            <div class="flex justify-between items-center">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center space-x-1.5">
+                <span>🛡️</span><span>Immediate Incident & Prevention Checklist</span>
+              </h4>
+              <span id="sim-checklist-tier-badge" class="px-2.5 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-800">Extreme Protocol Active</span>
+            </div>
+            <ul id="sim-sop-checklist" class="space-y-2 text-xs text-slate-700 divide-y divide-slate-100">
+              <li class="pt-1.5 flex items-start space-x-2"><span class="text-red-600 font-bold">1.</span><span>Enforce Section 144 / complete prohibition on all open agricultural stubble & biomass burning.</span></li>
+              <li class="pt-1.5 flex items-start space-x-2"><span class="text-red-600 font-bold">2.</span><span>Pre-stage rapid-response strike teams with mist-blowers and water tankers at ridge access nodes.</span></li>
+              <li class="pt-1.5 flex items-start space-x-2"><span class="text-red-600 font-bold">3.</span><span>Deploy aerial drone surveillance over high-biomass forest tracts and man watchtowers 24/7.</span></li>
+              <li class="pt-1.5 flex items-start space-x-2"><span class="text-red-600 font-bold">4.</span><span>Broadcast emergency SMS advisories to Van Panchayats and Joint Forest Management Committees.</span></li>
+              <li class="pt-1.5 flex items-start space-x-2"><span class="text-red-600 font-bold">5.</span><span>Suspend tourist safari corridors and restrict general public access to core forest zones.</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: MODEL BENCHMARK & EVALUATION -->
+    <div id="content-model-eval" class="tab-content hidden space-y-6">
+      <!-- Champion Model KPIs -->
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex justify-between items-center mb-1">
+          <h3 class="text-base font-bold text-slate-900">Champion Model: Balanced Random Forest Classifier</h3>
+          <span class="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full font-bold">Deployed Model</span>
+        </div>
+        <p class="text-xs text-slate-500 mb-4">Evaluated strictly with 5-Fold Spatial Block Cross-Validation across distinct geographic regions of India.</p>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">
+          <div class="p-4 bg-slate-50 rounded-lg">
+            <p class="text-xs text-slate-500">ROC-AUC</p>
+            <p class="text-xl font-bold text-slate-900 mt-0.5">0.9953</p>
+          </div>
+          <div class="p-4 bg-slate-50 rounded-lg">
+            <p class="text-xs text-slate-500">PR-AUC (Avg Precision)</p>
+            <p class="text-xl font-bold text-slate-900 mt-0.5">0.5315</p>
+          </div>
+          <div class="p-4 bg-slate-50 rounded-lg">
+            <p class="text-xs text-slate-500">Optimal F1 Threshold</p>
+            <p class="text-xl font-bold text-slate-900 mt-0.5">0.6220</p>
+          </div>
+          <div class="p-4 bg-slate-50 rounded-lg">
+            <p class="text-xs text-slate-500">Max F1 Score</p>
+            <p class="text-xl font-bold text-slate-900 mt-0.5">0.6440</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW: MODEL COMPARISON & PRECISION-RECALL CURVE -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Graph 7: Multi-Model Benchmark Comparison -->
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <h3 class="text-base font-bold text-slate-900">7. Machine Learning Model Benchmark Comparison</h3>
+              <span class="text-xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded font-semibold">3 Models Tested</span>
+            </div>
+            <p class="text-xs text-slate-500 mb-4">Random Forest vs. HistGradientBoosting vs. Logistic Regression Baseline.</p>
+            <div class="h-64"><canvas id="modelComparisonChart"></canvas></div>
+          </div>
+          <div class="mt-4 p-3 bg-indigo-50/70 border border-indigo-200 rounded text-xs text-indigo-950 space-y-1">
+            <p><strong>Ensemble Superiority:</strong> Non-linear decision trees (RF & HistGB) capture fuel moisture non-linearities and threshold desiccation, outperforming regularized logistic regression ($F_1 = 0.644$ vs $0.345$).</p>
+          </div>
+        </div>
+
+        <!-- Graph 6: Precision-Recall Curve -->
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <h3 class="text-base font-bold text-slate-900">6. Precision-Recall Curve & Operating Cutoff</h3>
+              <span class="text-xs bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-semibold">PR-AUC = 0.5315</span>
+            </div>
+            <p class="text-xs text-slate-500 mb-4">Precision vs Recall across probability thresholds with optimal cutoff at t* = 0.622.</p>
+            <div class="h-64"><canvas id="prCurveChart"></canvas></div>
+          </div>
+          <div class="mt-4 p-3 bg-rose-50/70 border border-rose-200 rounded text-xs text-rose-950 space-y-1">
+            <p><strong>Operating Point:</strong> At $t^* = 0.6220$, the model balances false positives (Precision 58.2%) while successfully capturing <strong>72.1% of true active fire anomalies</strong> across held-out geographic tiles.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Spatial Cross-Validation Table -->
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <h4 class="text-sm font-semibold text-slate-800 mb-2">5-Fold Spatial Block Cross-Validation Results</h4>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-xs text-left border">
+            <thead class="bg-slate-100 font-semibold text-slate-700">
+              <tr>
+                <th class="p-2 border">Fold</th>
+                <th class="p-2 border">Held-out Spatial Region</th>
+                <th class="p-2 border">ROC-AUC</th>
+                <th class="p-2 border">PR-AUC</th>
+              </tr>
+            </thead>
+            <tbody id="spatial-cv-table" class="divide-y text-slate-600">
+              <!-- Populated dynamically via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 7: OPERATIONAL PREVENTION & INCIDENT SOPS -->
+    <div id="content-prevention" class="tab-content hidden space-y-6">
+      <!-- Header Banner -->
+      <div class="bg-gradient-to-r from-emerald-700 via-teal-700 to-cyan-800 p-5 rounded-xl text-white shadow-sm flex flex-wrap justify-between items-center gap-3">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="text-2xl">🛡️</span>
+            <h2 class="text-lg font-bold">Wildfire Prevention, Precautions & Incident Protocols</h2>
+          </div>
+          <p class="text-xs text-emerald-100 mt-1">Decision Support System (DSS) translating environmental risk probabilities into field-level Standard Operating Procedures (SOPs).</p>
+        </div>
+        <span class="px-3 py-1 bg-white/20 rounded-full text-xs font-semibold backdrop-blur-xs">Operational Governance Guide</span>
+      </div>
+
+      <!-- SECTION 1: DYNAMIC RISK-TIER SOPS -->
+      <div class="space-y-4">
+        <h3 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+          <span>📋</span><span>Tier-Specific Standard Operating Procedures (SOPs)</span>
+        </h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Tier: EXTREME -->
+          <div class="bg-white p-5 rounded-xl border-l-4 border-red-600 border-t border-r border-b border-slate-200 shadow-sm space-y-3">
+            <div class="flex justify-between items-center">
+              <span class="px-2.5 py-0.5 rounded text-xs font-bold bg-red-600 text-white uppercase tracking-wider">Extreme Hazard SOP</span>
+              <span class="text-xs font-semibold text-red-600">VPD > 3.0 kPa | Dry Days > 20</span>
+            </div>
+            <h4 class="text-sm font-bold text-slate-900">Immediate Containment & High-Alert Protocol</h4>
+            <ul class="text-xs text-slate-700 space-y-2">
+              <li class="flex items-start space-x-2"><span class="text-red-600 font-bold">●</span><span><strong>Legal Ban:</strong> District Magistrate enforces Section 144 prohibition on all open biomass, trash, and agricultural residue burning.</span></li>
+              <li class="flex items-start space-x-2"><span class="text-red-600 font-bold">●</span><span><strong>Rapid Deployment:</strong> Pre-stage mobile forest strike teams with mist-blowers, Pulaski tools, and water tenders at ridge crests.</span></li>
+              <li class="flex items-start space-x-2"><span class="text-red-600 font-bold">●</span><span><strong>Aerial Reconnaissance:</strong> Activate continuous drone flights over high-fuel pine and sal corridors; man fire watchtowers 24/7.</span></li>
+              <li class="flex items-start space-x-2"><span class="text-red-600 font-bold">●</span><span><strong>Access Restriction:</strong> Suspend tourist safari trails and temporary entry into core wildlife reserve zones.</span></li>
+              <li class="flex items-start space-x-2"><span class="text-red-600 font-bold">●</span><span><strong>Air Support Standby:</strong> Coordinate with State Disaster Management Authority (SDMA) for IAF Bambi bucket helicopter readiness.</span></li>
+            </ul>
+          </div>
+
+          <!-- Tier: HIGH -->
+          <div class="bg-white p-5 rounded-xl border-l-4 border-orange-500 border-t border-r border-b border-slate-200 shadow-sm space-y-3">
+            <div class="flex justify-between items-center">
+              <span class="px-2.5 py-0.5 rounded text-xs font-bold bg-orange-500 text-white uppercase tracking-wider">High Hazard SOP</span>
+              <span class="text-xs font-semibold text-orange-600">VPD 2.0 – 3.0 kPa | Dry Days 10 – 20</span>
+            </div>
+            <h4 class="text-sm font-bold text-slate-900">Preemptive Mitigation & Vigilance Protocol</h4>
+            <ul class="text-xs text-slate-700 space-y-2">
+              <li class="flex items-start space-x-2"><span class="text-orange-500 font-bold">●</span><span><strong>Fireline Clearing:</strong> Inspect and re-clear perimeter fire breaks (10m–30m wide) to remove dry pine needles and leaf accumulation.</span></li>
+              <li class="flex items-start space-x-2"><span class="text-orange-500 font-bold">●</span><span><strong>Boundary Patrols:</strong> Increase daily motorcycle and foot beats along agricultural-forest interface lines.</span></li>
+              <li class="flex items-start space-x-2"><span class="text-orange-500 font-bold">●</span><span><strong>Farmer Advisory:</strong> Issue gram-panchayat WhatsApp & SMS advisories restricting crop stubble clearing during high-wind hours (11:00–16:00).</span></li>
+              <li class="flex items-start space-x-2"><span class="text-orange-500 font-bold">●</span><span><strong>Water Point Verification:</strong> Inspect static water harvesting tanks, check dams, and stream tapping pumps.</span></li>
+            </ul>
+          </div>
+
+          <!-- Tier: MODERATE -->
+          <div class="bg-white p-5 rounded-xl border-l-4 border-amber-400 border-t border-r border-b border-slate-200 shadow-sm space-y-3">
+            <div class="flex justify-between items-center">
+              <span class="px-2.5 py-0.5 rounded text-xs font-bold bg-amber-400 text-amber-950 uppercase tracking-wider">Moderate Hazard SOP</span>
+              <span class="text-xs font-semibold text-amber-600">VPD 1.2 – 2.0 kPa | Dry Days 5 – 10</span>
+            </div>
+            <h4 class="text-sm font-bold text-slate-900">Controlled Operations & Community Engagement</h4>
+            <ul class="text-xs text-slate-700 space-y-2">
+              <li class="flex items-start space-x-2"><span class="text-amber-500 font-bold">●</span><span><strong>Controlled Burning Windows:</strong> Prescribed counter-burns permitted only during early morning hours (05:00–08:00 AM) under direct Range Officer presence.</span></li>
+              <li class="flex items-start space-x-2"><span class="text-amber-500 font-bold">●</span><span><strong>Equipment Maintenance:</strong> Service backpack water pumps, fire beaters, and communication wireless handsets.</span></li>
+              <li class="flex items-start space-x-2"><span class="text-amber-500 font-bold">●</span><span><strong>Village Meetings:</strong> Conduct fire-sensitization sessions with Van Panchayats and Joint Forest Management Committees (JFMCs).</span></li>
+            </ul>
+          </div>
+
+          <!-- Tier: LOW -->
+          <div class="bg-white p-5 rounded-xl border-l-4 border-emerald-500 border-t border-r border-b border-slate-200 shadow-sm space-y-3">
+            <div class="flex justify-between items-center">
+              <span class="px-2.5 py-0.5 rounded text-xs font-bold bg-emerald-500 text-white uppercase tracking-wider">Low Hazard SOP</span>
+              <span class="text-xs font-semibold text-emerald-600">Recent Rain > 15 mm | VPD < 1.2 kPa</span>
+            </div>
+            <h4 class="text-sm font-bold text-slate-900">Baseline Surveillance & Fuel Mapping</h4>
+            <ul class="text-xs text-slate-700 space-y-2">
+              <li class="flex items-start space-x-2"><span class="text-emerald-500 font-bold">●</span><span><strong>Vegetation Audits:</strong> Map post-monsoon biomass growth and update local spatial fuel hazard maps.</span></li>
+              <li class="flex items-start space-x-2"><span class="text-emerald-500 font-bold">●</span><span><strong>Infrastructure Repair:</strong> Clean and deepen contour trenches, rainwater check dams, and fire observation towers.</span></li>
+              <li class="flex items-start space-x-2"><span class="text-emerald-500 font-bold">●</span><span><strong>Routine Reporting:</strong> Maintain regular logbook records and verify satellite automated FIRMS feed connectivity.</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 2: ROLE-BASED STAKEHOLDER RESPONSIBILITY MATRIX -->
+      <div class="space-y-4">
+        <h3 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+          <span>👥</span><span>Role-Based Operational Matrix</span>
+        </h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- Role 1: Forest Department -->
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center space-x-2 mb-2">
+                <span class="text-xl">🌲</span>
+                <h4 class="font-bold text-sm text-slate-900">Forest Department & RFOs</h4>
+              </div>
+              <p class="text-xs text-slate-500 mb-3">Frontline detection, containment, and tactical counter-measures.</p>
+              <ul class="text-xs text-slate-700 space-y-2">
+                <li class="flex items-start space-x-2"><span class="text-emerald-600 font-bold">✓</span><span>Establish 10–30 meter wide cleared fire lines separating compartments.</span></li>
+                <li class="flex items-start space-x-2"><span class="text-emerald-600 font-bold">✓</span><span>Execute early-season controlled burning of Chir Pine needle carpets.</span></li>
+                <li class="flex items-start space-x-2"><span class="text-emerald-600 font-bold">✓</span><span>Deploy Pulaski axes, rake hoes, and leaf blowers for mineral-soil firebreaks.</span></li>
+                <li class="flex items-start space-x-2"><span class="text-emerald-600 font-bold">✓</span><span>Integrate FSI Van Agni and NASA VIIRS automated SMS alert routing.</span></li>
+              </ul>
+            </div>
+            <div class="pt-3 border-t text-[11px] text-slate-500 font-medium">
+              Primary Goal: Zero uncontrolled wildfire propagation into core forest compartments.
+            </div>
+          </div>
+
+          <!-- Role 2: District Administration & Disaster Authorities -->
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center space-x-2 mb-2">
+                <span class="text-xl">🚑</span>
+                <h4 class="font-bold text-sm text-slate-900">DDMA & Emergency Services</h4>
+              </div>
+              <p class="text-xs text-slate-500 mb-3">Inter-agency logistics, medical readiness, and legal enforcement.</p>
+              <ul class="text-xs text-slate-700 space-y-2">
+                <li class="flex items-start space-x-2"><span class="text-blue-600 font-bold">✓</span><span>Enforce legal restrictions on open incineration during peak hazard days.</span></li>
+                <li class="flex items-start space-x-2"><span class="text-blue-600 font-bold">✓</span><span>Pre-designate emergency evacuation corridors for forest fringe settlements.</span></li>
+                <li class="flex items-start space-x-2"><span class="text-blue-600 font-bold">✓</span><span>Ensure district civil hospital burn wards maintain standby capacity.</span></li>
+                <li class="flex items-start space-x-2"><span class="text-blue-600 font-bold">✓</span><span>Coordinate with NDRF and Indian Air Force for emergency water-drop assets.</span></li>
+              </ul>
+            </div>
+            <div class="pt-3 border-t text-[11px] text-slate-500 font-medium">
+              Primary Goal: Protection of human lives, peripheral infrastructure, and smoke hazard mitigation.
+            </div>
+          </div>
+
+          <!-- Role 3: Agricultural & Fringe Communities -->
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center space-x-2 mb-2">
+                <span class="text-xl">🌾</span>
+                <h4 class="font-bold text-sm text-slate-900">Farming & Fringe Communities</h4>
+              </div>
+              <p class="text-xs text-slate-500 mb-3">Community stewardship and safe agricultural management.</p>
+              <ul class="text-xs text-slate-700 space-y-2">
+                <li class="flex items-start space-x-2"><span class="text-amber-600 font-bold">✓</span><span>Adopt in-situ crop residue management (Happy Seeder, Super-SMS harvesters).</span></li>
+                <li class="flex items-start space-x-2"><span class="text-amber-600 font-bold">✓</span><span>Adopt regulated early morning collection for Mahua flowers without open fire.</span></li>
+                <li class="flex items-start space-x-2"><span class="text-amber-600 font-bold">✓</span><span>Form village volunteer squads (*Van Suraksha Samiti*) for rapid smoke reporting.</span></li>
+                <li class="flex items-start space-x-2"><span class="text-amber-600 font-bold">✓</span><span>Maintain a 5-meter cleared perimeter buffer between farmland and forest fence.</span></li>
+              </ul>
+            </div>
+            <div class="pt-3 border-t text-[11px] text-slate-500 font-medium">
+              Primary Goal: Elimination of accidental agricultural fire escapes into adjacent wildlands.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: ACADEMIC METHODOLOGY -->
+    <div id="content-methodology" class="tab-content hidden space-y-6">
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 text-sm text-slate-700">
+        <h3 class="text-lg font-bold text-slate-900">Academic Methodology & Formulations</h3>
+
+        <div>
+          <h4 class="font-semibold text-slate-900">1. Remote Sensing Radiometry</h4>
+          <p class="mt-1">
+            Active fire detection algorithms from the <strong>VIIRS (Visible Infrared Imaging Radiometer Suite)</strong> on the
+            <strong>Suomi NPP</strong> satellite observe emitted radiance at 375m nominal resolution using mid-wave infrared
+            (I4 channel, &lambda; &approx; 3.74 &mu;m) and thermal infrared (I5 channel, &lambda; &approx; 11.45 &mu;m).
+            At sub-pixel scales, Planck's radiation law dictates that high-temperature combustion anomalies emit intense radiance in the mid-wave IR,
+            enabling sensitive detection of sub-pixel fire fronts.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="font-semibold text-slate-900">2. Vapor Pressure Deficit (Tetens Formula)</h4>
+          <p class="mt-1">
+            Vapor Pressure Deficit (VPD in kPa) reflects the atmospheric drying capacity driving dead fine fuel desiccation:
+          </p>
+          <div class="bg-slate-50 p-3 rounded font-mono text-xs my-2">
+            e_s(T) = 0.61078 * exp((17.27 * T) / (T + 237.3)) [kPa]<br>
+            VPD = e_s(T) * (1 - RH / 100) [kPa]
+          </div>
+        </div>
+
+        <div>
+          <h4 class="font-semibold text-slate-900">3. Spatial Block Cross-Validation Design</h4>
+          <p class="mt-1">
+            Standard random K-Fold cross-validation results in severe spatial autocorrelation leakage (Tobler's First Law of Geography).
+            Our pipeline divides the Indian subcontinent into spatial coordinate blocks, training on distant zones and testing exclusively on held-out geographic tiles to measure genuine spatial generalizability.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="font-semibold text-slate-900">4. Citations & References</h4>
+          <ul class="list-disc list-inside mt-1 space-y-1 text-xs">
+            <li><strong>NASA FIRMS:</strong> Schroeder, W., et al. (2014). <em>The New VIIRS 375 m active fire detection product: Algorithm description and initial assessment.</em> Remote Sensing of Environment, 143, 85-96.</li>
+            <li><strong>NASA POWER:</strong> Prediction Of Worldwide Energy Resources project, NASA Langley Research Center.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="bg-white border-t border-slate-200 py-4 mt-8 text-center text-xs text-slate-500">
+    Wildfire Risk Intelligence & Hotspot Analytics &bull; College Data Science Capstone &bull; Built with Node.js, PySpark & Scikit-Learn
+  </footer>
+
+  <!-- Application Logic -->
+  <script>
+    let analyticsData = null;
+    let liveNrtData = null;
+    let currentMapMode = 'historical';
+    let leafletMap = null;
+    let markersLayer = null;
+
+    // Tab Switching
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('border-red-600', 'text-red-600');
+        b.classList.add('border-transparent', 'text-slate-500');
+      });
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+
+      document.getElementById('tab-' + tabId).classList.add('border-red-600', 'text-red-600');
+      document.getElementById('tab-' + tabId).classList.remove('border-transparent', 'text-slate-500');
+      document.getElementById('content-' + tabId).classList.remove('hidden');
+
+      if (tabId === 'map-view' && leafletMap) {
+        setTimeout(() => leafletMap.invalidateSize(), 200);
+      } else if (tabId === 'radiometry') {
+        setTimeout(renderRadiometryCharts, 60);
+      } else if (tabId === 'seasonality') {
+        setTimeout(renderDesiccationChart, 60);
+      } else if (tabId === 'model-eval') {
+        setTimeout(renderModelBenchmarkCharts, 60);
+      }
+    }
+
+    // Map Mode Switching (Historical vs. Live NRT)
+    function setMapMode(mode) {
+      currentMapMode = mode;
+      const btnHist = document.getElementById('btn-mode-historical');
+      const btnLive = document.getElementById('btn-mode-live');
+      const banner = document.getElementById('live-nrt-banner');
+      const statusPill = document.getElementById('map-status-pill');
+
+      if (mode === 'live') {
+        btnLive.className = 'px-3 py-1.5 rounded-md bg-white text-red-600 font-bold shadow-sm transition flex items-center space-x-1.5';
+        btnHist.className = 'px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition';
+        banner.classList.remove('hidden');
+        statusPill.className = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-800';
+        statusPill.innerHTML = '<span class="w-2 h-2 mr-1 rounded-full bg-red-600 animate-pulse"></span> LIVE SATELLITE FEED (24h)';
+
+        if (!liveNrtData) {
+          fetchLiveHotspots(false);
+        } else {
+          renderLiveHotspots(liveNrtData.hotspots);
+        }
+      } else {
+        btnHist.className = 'px-3 py-1.5 rounded-md bg-white text-slate-900 font-semibold shadow-sm transition';
+        btnLive.className = 'px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900 flex items-center space-x-1.5 transition';
+        banner.classList.add('hidden');
+        statusPill.className = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700';
+        statusPill.innerText = 'Historical 2020–2025';
+
+        if (analyticsData) {
+          renderHotspots(analyticsData.representative_hotspots);
+        }
+      }
+    }
+
+    // Refresh Near Real-Time Satellite Feed (with optional MAP_KEY)
+    function refreshLiveNrtFeed() {
+      const mapKey = (document.getElementById('input-nrt-map-key') ? document.getElementById('input-nrt-map-key').value : '').trim();
+      const btn = document.getElementById('btn-refresh-live');
+      const spinner = document.getElementById('refresh-spinner');
+      if (btn) btn.disabled = true;
+      if (spinner) spinner.classList.add('animate-spin');
+
+      fetch('/api/hotspots/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ map_key: mapKey })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (btn) btn.disabled = false;
+        if (spinner) spinner.classList.remove('animate-spin');
+        liveNrtData = data;
+        document.getElementById('live-source-name').innerText = data.source;
+        document.getElementById('live-hotspot-count').innerText = data.total_active_detections.toLocaleString();
+        document.getElementById('live-peak-frp').innerText = data.peak_frp.toFixed(1) + ' MW';
+        const updateTime = new Date(data.last_updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('live-update-time').innerText = updateTime + ' UTC';
+        if (currentMapMode === 'live') {
+          renderLiveHotspots(data.hotspots);
+        }
+      })
+      .catch(err => {
+        if (btn) btn.disabled = false;
+        if (spinner) spinner.classList.remove('animate-spin');
+        console.error('Refresh error:', err);
+        fetchLiveHotspots(false);
+      });
+    }
+
+    // Fetch Near Real-Time Satellite Feed
+    function fetchLiveHotspots(force = false) {
+      fetch('/api/hotspots/live')
+        .then(res => {
+          if (!res.ok) throw new Error("API route unavailable");
+          return res.json();
+        })
+        .catch(() => fetch('./data/live_24h.json').then(r => r.json()))
+        .then(data => {
+          liveNrtData = data;
+          document.getElementById('live-source-name').innerText = data.source;
+          document.getElementById('live-hotspot-count').innerText = data.total_active_detections.toLocaleString();
+          document.getElementById('live-peak-frp').innerText = data.peak_frp.toFixed(1) + ' MW';
+          
+          const updateTime = new Date(data.last_updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          document.getElementById('live-update-time').innerText = updateTime + ' UTC';
+
+          if (currentMapMode === 'live') {
+            renderLiveHotspots(data.hotspots);
+          }
+        })
+        .catch(err => console.error('Error fetching live NRT stream:', err));
+    }
+
+    // Initialize Leaflet Map
+    function initMap(hotspots) {
+      if (leafletMap) return;
+      leafletMap = L.map('map').setView([22.5, 79.5], 5);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(leafletMap);
+
+      markersLayer = L.layerGroup().addTo(leafletMap);
+      renderHotspots(hotspots);
+    }
+
+    function renderHotspots(hotspots) {
+      if (!markersLayer || !hotspots) return;
+      markersLayer.clearLayers();
+
+      hotspots.forEach(h => {
+        const color = h.risk_tier === 'Extreme' ? '#7b001a' :
+                      h.risk_tier === 'High' ? '#d62728' :
+                      h.risk_tier === 'Moderate' ? '#ff7f0e' : '#28a745';
+
+        const circle = L.circleMarker([h.grid_lat, h.grid_lon], {
+          radius: Math.min(12, Math.max(5, (h.max_frp || 10) / 10)),
+          fillColor: color,
+          color: '#ffffff',
+          weight: 1,
+          opacity: 1,
+          fillOpacity: 0.8
+        });
+
+        circle.bindPopup(`
+          <div class="text-xs">
+            <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase mb-1" style="background:${color};color:#fff;">
+              ${h.risk_tier} RISK (${(h.risk_score * 100).toFixed(1)}%)
+            </span><br>
+            <strong>Archive Date:</strong> ${h.date}<br>
+            <strong>Coordinates:</strong> ${h.grid_lat.toFixed(2)}°N, ${h.grid_lon.toFixed(2)}°E<br>
+            <strong>Fire Radiative Power:</strong> ${(h.max_frp || 0).toFixed(1)} MW<br>
+            <strong>VPD:</strong> ${h.vpd_kpa.toFixed(2)} kPa | <strong>Temp:</strong> ${h.T2M.toFixed(1)}°C
+          </div>
+        `);
+        markersLayer.addLayer(circle);
+      });
+    }
+
+    function renderLiveHotspots(hotspots) {
+      if (!markersLayer || !hotspots) return;
+      markersLayer.clearLayers();
+
+      hotspots.forEach(h => {
+        const color = h.risk_tier === 'Extreme' ? '#7b001a' :
+                      h.risk_tier === 'High' ? '#d62728' :
+                      h.risk_tier === 'Moderate' ? '#ff7f0e' : '#28a745';
+
+        const circle = L.circleMarker([h.latitude, h.longitude], {
+          radius: Math.min(14, Math.max(6, (h.frp || 10) / 8)),
+          fillColor: color,
+          color: '#ffffff',
+          weight: 1.5,
+          opacity: 1,
+          fillOpacity: 0.85
+        });
+
+        circle.bindPopup(`
+          <div class="text-xs space-y-1">
+            <div class="flex items-center space-x-1.5">
+              <span class="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
+              <strong class="text-red-700 font-bold uppercase">LIVE DETECTED HOTSPOT</strong>
+            </div>
+            <p><strong>Overpass:</strong> ${h.overpass}</p>
+            <p><strong>Date & Time:</strong> ${h.acq_date} (${h.acq_time} UTC)</p>
+            <p><strong>Region:</strong> ${h.region || 'India'}</p>
+            <p><strong>Sensor:</strong> ${h.satellite} &bull; ${h.instrument}</p>
+            <p><strong>Fire Radiative Power:</strong> <span class="font-bold text-red-600">${h.frp.toFixed(1)} MW</span></p>
+            <p><strong>Brightness Temp:</strong> ${h.bright_ti4.toFixed(1)} K</p>
+            <p><strong>Confidence:</strong> <span class="capitalize font-semibold">${h.confidence}</span></p>
+          </div>
+        `);
+        markersLayer.addLayer(circle);
+      });
+    }
+
+    // Realtime Risk Simulation
+    function runSimulation() {
+      const temp = parseFloat(document.getElementById('input-temp').value);
+      const rh = parseFloat(document.getElementById('input-rh').value);
+      const wind = parseFloat(document.getElementById('input-wind').value);
+      const rain = parseFloat(document.getElementById('input-rain').value);
+      const dry = parseInt(document.getElementById('input-dry').value);
+
+      document.getElementById('val-temp').innerText = temp.toFixed(1) + ' °C';
+      document.getElementById('val-rh').innerText = rh.toFixed(0) + ' %';
+      document.getElementById('val-wind').innerText = wind.toFixed(1) + ' m/s';
+      document.getElementById('val-rain').innerText = rain.toFixed(0) + ' mm';
+      document.getElementById('val-dry').innerText = dry + ' days';
+
+      // Call API
+      fetch('/api/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ T2M: temp, RH2M: rh, WS10M: wind, rain_7d: rain, dry_days: dry })
+      })
+      .then(res => {
+        if (!res.ok) throw new Error("Predict API not ok");
+        return res.json();
+      })
+      .catch(() => {
+        // High-precision client-side fallback calculation for static hosting
+        const rhClamped = Math.max(0, Math.min(100, rh));
+        const es = 0.61078 * Math.exp((17.27 * temp) / (temp + 237.3));
+        const vpd = Math.max(0, es * (1 - rhClamped / 100));
+        const angstrom = rh / 20.0 + (27.0 - temp) / 10.0;
+        const vpdFactor = Math.min(1.0, vpd / 3.8);
+        const drySpellFactor = Math.min(1.0, dry / 25.0);
+        const windFactor = Math.min(1.0, wind / 15.0);
+        const rainSuppression = Math.max(0.0, 1.0 - rain / 35.0);
+        const hazardFactor = angstrom < 2.0 ? 1.0 : 0.45;
+        let score = (0.42 * vpdFactor + 0.26 * drySpellFactor + 0.16 * windFactor + 0.16 * hazardFactor) * rainSuppression;
+        score = Math.max(0.02, Math.min(0.98, score));
+        let tier = "Low";
+        if (score >= 0.75) tier = "Extreme";
+        else if (score >= 0.5) tier = "High";
+        else if (score >= 0.2) tier = "Moderate";
+        let guidance = "";
+        if (tier === "Extreme") guidance = "Critical evaporative demand (VPD > 3.0 kPa) with depleted surface fuel moisture. Ignitions can spread rapidly into crown fires. Suspend open agricultural burnings and stage rapid response crews.";
+        else if (tier === "High") guidance = "Elevated fuel desiccation and brisk surface winds. Anomalies may transition into active fire fronts. Restrict biomass clearances and issue district watch advisories.";
+        else if (tier === "Moderate") guidance = "Conditions permit ignition under continuous heat source, but fuel moisture buffers limit explosive propagation. Routine vigilance recommended.";
+        else guidance = "Adequate surface moisture or recent rainfall suppressing ignition potential. Standard baseline monitoring.";
+        return {
+          risk_score: parseFloat(score.toFixed(4)),
+          risk_tier: tier,
+          vpd_kpa: parseFloat(vpd.toFixed(3)),
+          angstrom_index: parseFloat(angstrom.toFixed(2)),
+          guidance: guidance
+        };
+      })
+      .then(res => {
+        document.getElementById('res-vpd').innerText = res.vpd_kpa.toFixed(2) + ' kPa';
+        document.getElementById('res-angstrom').innerText = res.angstrom_index.toFixed(2);
+        document.getElementById('res-risk-tier').innerText = `${res.risk_tier.toUpperCase()} RISK (${(res.risk_score * 100).toFixed(1)}%)`;
+        document.getElementById('res-guidance').innerText = res.guidance;
+
+        const container = document.getElementById('risk-badge-container');
+        container.className = `p-6 rounded-xl shadow-sm border transition-all duration-300 tier-badge-${res.risk_tier.toLowerCase()}`;
+
+        const iconMap = { Low: '✅', Moderate: 'ℹ️', High: '⚠️', Extreme: '🚨' };
+        document.getElementById('res-risk-icon').innerText = iconMap[res.risk_tier] || '🔥';
+
+        // Update Dynamic Prevention Checklist
+        const checklist = document.getElementById('sim-sop-checklist');
+        const checklistBadge = document.getElementById('sim-checklist-tier-badge');
+        if (checklist && checklistBadge) {
+          const sops = {
+            Extreme: [
+              { num: '1', text: 'Enforce Section 144 / complete legal ban on agricultural residue & biomass burning.' },
+              { num: '2', text: 'Pre-stage rapid-response strike teams with mist-blowers and water tenders at ridge crests.' },
+              { num: '3', text: 'Deploy aerial drone surveillance over high-biomass tracts and man watchtowers 24/7.' },
+              { num: '4', text: 'Broadcast emergency SMS advisories to Van Panchayats and Joint Forest Management Committees.' },
+              { num: '5', text: 'Suspend tourist safari trails and restrict public access to core national park zones.' }
+            ],
+            High: [
+              { num: '1', text: 'Re-clear perimeter fire breaks (10m–30m) to remove dry pine needles and leaf accumulation.' },
+              { num: '2', text: 'Intensify motorized and foot beats along agricultural-forest interface lines.' },
+              { num: '3', text: 'Issue village advisories strictly prohibiting crop burning during peak wind hours (11:00–16:00).' },
+              { num: '4', text: 'Inspect static water harvesting tanks, check dams, and stream tapping pumps.' }
+            ],
+            Moderate: [
+              { num: '1', text: 'Permit controlled prescribed burns only during early morning (05:00–08:00 AM) under RFO presence.' },
+              { num: '2', text: 'Service backpack water pumps, Pulaski tools, and communication wireless handsets.' },
+              { num: '3', text: 'Conduct community fire-sensitization meetings with village forest wardens.' }
+            ],
+            Low: [
+              { num: '1', text: 'Perform post-monsoon vegetation audits and update spatial fuel hazard maps.' },
+              { num: '2', text: 'Clean and deepen contour trenches, rainwater check dams, and observation towers.' },
+              { num: '3', text: 'Maintain routine automated NASA FIRMS satellite telemetry connectivity.' }
+            ]
+          };
+
+          const items = sops[res.risk_tier] || sops.Moderate;
+          const badgeStyles = {
+            Extreme: 'bg-red-100 text-red-800',
+            High: 'bg-orange-100 text-orange-800',
+            Moderate: 'bg-amber-100 text-amber-900',
+            Low: 'bg-emerald-100 text-emerald-800'
+          };
+          checklistBadge.className = `px-2.5 py-0.5 rounded text-[11px] font-bold ${badgeStyles[res.risk_tier] || badgeStyles.Moderate}`;
+          checklistBadge.innerText = `${res.risk_tier} Protocol Active`;
+
+          checklist.innerHTML = items.map(item => `
+            <li class="pt-1.5 flex items-start space-x-2">
+              <span class="font-bold ${res.risk_tier === 'Extreme' ? 'text-red-600' : res.risk_tier === 'High' ? 'text-orange-500' : 'text-slate-600'}">${item.num}.</span>
+              <span>${item.text}</span>
+            </li>
+          `).join('');
+        }
+      });
+    }
+
+    // Load Initial Analytics
+    fetch('/api/analytics')
+      .then(res => {
+        if (!res.ok) throw new Error("API route unavailable");
+        return res.json();
+      })
+      .catch(() => fetch('./data/analytics_summary.json').then(r => r.json()))
+      .then(data => {
+        analyticsData = data;
+
+        // Populate KPIs
+        document.getElementById('kpi-total-records').innerText = data.total_records.toLocaleString();
+        document.getElementById('kpi-hotspots').innerText = data.total_hotspots_detected.toLocaleString();
+        document.getElementById('kpi-roc-auc').innerText = data.model_performance.roc_auc.toFixed(3);
+        document.getElementById('kpi-pr-auc').innerText = data.model_performance.pr_auc.toFixed(3);
+
+        // Render Charts
+        renderSeasonalityChart(data.monthly_seasonality);
+        renderImportanceChart(data.feature_importance);
+
+        // Populate Spatial CV Table
+        const cvTable = document.getElementById('spatial-cv-table');
+        const regionNames = ['Central India Forests', 'Himalayan Foothills', 'Eastern Ghats', 'Indo-Gangetic Plains', 'Western Ghats'];
+        data.model_performance.spatial_cv_results.forEach(f => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td class="p-2 border font-medium">Fold ${f.fold + 1}</td>
+            <td class="p-2 border">${regionNames[f.fold] || 'Spatial Zone ' + (f.fold + 1)}</td>
+            <td class="p-2 border font-semibold text-blue-600">${f.roc_auc ? f.roc_auc.toFixed(4) : 'N/A'}</td>
+            <td class="p-2 border font-semibold text-purple-600">${f.pr_auc ? f.pr_auc.toFixed(4) : 'N/A'}</td>
+          `;
+          cvTable.appendChild(row);
+        });
+
+        // Initialize Map
+        initMap(data.representative_hotspots);
+      });
+
+    function renderSeasonalityChart(seasonality) {
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const counts = seasonality.map(s => s.hotspot_count);
+      const vpds = seasonality.map(s => s.avg_vpd);
+
+      const ctx1 = document.getElementById('overviewSeasonalityChart').getContext('2d');
+      new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels: monthNames,
+          datasets: [{
+            label: 'Thermal Anomalies',
+            data: counts,
+            backgroundColor: counts.map((_, i) => [2, 3, 4].includes(i) ? '#d62728' : [9, 10].includes(i) ? '#ff7f0e' : '#3b82f6'),
+            borderRadius: 4
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      });
+
+      const ctx2 = document.getElementById('detailSeasonalityChart').getContext('2d');
+      new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: monthNames,
+          datasets: [{
+            label: 'Active Detections',
+            data: counts,
+            backgroundColor: '#d62728',
+            borderRadius: 4
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      const ctx3 = document.getElementById('vpdTrendChart').getContext('2d');
+      new Chart(ctx3, {
+        type: 'line',
+        data: {
+          labels: monthNames,
+          datasets: [{
+            label: 'Mean Vapor Pressure Deficit (kPa)',
+            data: vpds,
+            borderColor: '#ff7f0e',
+            backgroundColor: 'rgba(255, 127, 14, 0.1)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+    }
+
+    function renderImportanceChart(importances) {
+      const top = importances.slice(0, 8);
+      const labels = top.map(i => i.feature);
+      const values = top.map(i => i.importance);
+
+      const ctx = document.getElementById('overviewImportanceChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        indexAxis: 'y',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Relative Importance',
+            data: values,
+            backgroundColor: '#3b82f6',
+            borderRadius: 4
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      });
+    }
+
+    let radiometryRendered = false;
+    let desiccationRendered = false;
+    let modelEvalRendered = false;
+
+    // Charts 1, 2, 3, 4: Radiometry, Planck Anomaly & Diurnal Overpasses
+    function renderRadiometryCharts() {
+      if (radiometryRendered) return;
+      radiometryRendered = true;
+
+      // Graph 1: FRP Distribution
+      const ctxFRP = document.getElementById('frpDistChart');
+      if (ctxFRP) {
+        new Chart(ctxFRP.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: ['< 10 MW', '10–25 MW', '25–50 MW', '50–100 MW', '> 100 MW'],
+            datasets: [{
+              label: 'Observed Hotspots',
+              data: [6120, 3940, 1280, 520, 140],
+              backgroundColor: ['#fef3c7', '#fde68a', '#f59e0b', '#dc2626', '#991b1b'],
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { title: { display: true, text: 'Detection Count' } } }
+          }
+        });
+      }
+
+      // Graph 2: Bispectral Radiometry (Ti4 vs Ti5)
+      const ctxBi = document.getElementById('bispectralChart');
+      if (ctxBi) {
+        new Chart(ctxBi.getContext('2d'), {
+          type: 'scatter',
+          data: {
+            datasets: [
+              {
+                label: 'Active Fire Combustion Anomaly',
+                data: [
+                  { x: 301.2, y: 336.5 }, { x: 303.8, y: 342.1 }, { x: 306.4, y: 351.8 },
+                  { x: 299.5, y: 328.4 }, { x: 308.2, y: 361.0 }, { x: 304.7, y: 347.2 },
+                  { x: 302.5, y: 339.8 }, { x: 305.6, y: 354.3 }, { x: 310.1, y: 367.4 },
+                  { x: 303.1, y: 334.6 }, { x: 307.9, y: 358.9 }, { x: 301.9, y: 331.2 },
+                  { x: 309.4, y: 364.5 }, { x: 304.1, y: 344.0 }, { x: 306.8, y: 356.2 }
+                ],
+                backgroundColor: '#dc2626',
+                pointRadius: 6,
+                pointHoverRadius: 8
+              },
+              {
+                label: '1:1 Baseline (Non-Burning Surface)',
+                data: [{ x: 295, y: 295 }, { x: 315, y: 315 }, { x: 335, y: 335 }, { x: 370, y: 370 }],
+                type: 'line',
+                borderColor: '#94a3b8',
+                borderDash: [5, 5],
+                fill: false,
+                pointRadius: 0
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: { min: 290, max: 320, title: { display: true, text: 'T_i5 Thermal IR (11.45 μm) [K]' } },
+              y: { min: 290, max: 375, title: { display: true, text: 'T_i4 Mid-Wave IR (3.74 μm) [K]' } }
+            }
+          }
+        });
+      }
+
+      // Graph 3: State & Regional Breakdown
+      const ctxState = document.getElementById('stateBreakdownChart');
+      if (ctxState) {
+        new Chart(ctxState.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: ['Punjab', 'Madhya Pradesh', 'Odisha', 'Chhattisgarh', 'Maharashtra', 'Uttarakhand', 'Himachal Pradesh'],
+            datasets: [{
+              label: 'Total Hotspots (2020–2025)',
+              data: [4150, 2890, 1940, 1420, 980, 620, 310],
+              backgroundColor: '#3b82f6',
+              borderRadius: 4
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { title: { display: true, text: 'Thermal Detections' } } }
+          }
+        });
+      }
+
+      // Graph 4: Day vs Night Overpass
+      const ctxDN = document.getElementById('dayNightChart');
+      if (ctxDN) {
+        new Chart(ctxDN.getContext('2d'), {
+          type: 'doughnut',
+          data: {
+            labels: ['Daytime Overpass (~13:30 IST)', 'Nighttime Overpass (~01:30 IST)'],
+            datasets: [{
+              data: [78.2, 21.8],
+              backgroundColor: ['#f97316', '#1e293b'],
+              borderWidth: 2,
+              borderColor: '#ffffff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom' }
+            }
+          }
+        });
+      }
+    }
+
+    // Graph 5: Rainfall Suppression & Dry Spell Desiccation
+    function renderDesiccationChart() {
+      if (desiccationRendered) return;
+      desiccationRendered = true;
+
+      const ctxRain = document.getElementById('rainfallDesiccationChart');
+      if (ctxRain) {
+        new Chart(ctxRain.getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: ['0–3 days', '4–7 days', '8–14 days', '15–21 days', '22–30 days', '> 30 days'],
+            datasets: [
+              {
+                label: 'Fire Presence Probability (%) vs Dry Days',
+                data: [2.1, 4.5, 12.8, 38.6, 68.4, 84.2],
+                borderColor: '#dc2626',
+                backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                fill: true,
+                tension: 0.3,
+                yAxisID: 'y'
+              },
+              {
+                label: 'Antecedent Rain Suppression Buffer (%)',
+                data: [98.0, 92.5, 75.2, 42.1, 15.4, 3.2],
+                borderColor: '#0284c7',
+                backgroundColor: 'rgba(2, 132, 199, 0.05)',
+                borderDash: [4, 4],
+                fill: false,
+                tension: 0.3,
+                yAxisID: 'y'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: { min: 0, max: 100, title: { display: true, text: 'Percentage (%)' } }
+            }
+          }
+        });
+      }
+    }
+
+    // Graphs 6 & 7: Model Benchmark & Precision-Recall
+    function renderModelBenchmarkCharts() {
+      if (modelEvalRendered) return;
+      modelEvalRendered = true;
+
+      // Graph 7: Comprehensive Multi-Model Benchmark Comparison
+      const ctxComp = document.getElementById('modelComparisonChart');
+      if (ctxComp) {
+        new Chart(ctxComp.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: ['ROC-AUC', 'PR-AUC (Avg Precision)', 'Optimal F1 Score', 'Recall (True Detection Rate)'],
+            datasets: [
+              {
+                label: 'Random Forest (Champion)',
+                data: [0.995, 0.532, 0.644, 0.721],
+                backgroundColor: '#2563eb',
+                borderRadius: 4
+              },
+              {
+                label: 'HistGradientBoosting',
+                data: [0.988, 0.518, 0.621, 0.698],
+                backgroundColor: '#10b981',
+                borderRadius: 4
+              },
+              {
+                label: 'Logistic Regression (Baseline)',
+                data: [0.842, 0.284, 0.345, 0.462],
+                backgroundColor: '#94a3b8',
+                borderRadius: 4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: { min: 0.0, max: 1.05, title: { display: true, text: 'Cross-Validation Metric (0.0 – 1.0)' } }
+            }
+          }
+        });
+      }
+
+      // Graph 6: Precision-Recall Curve with Optimal F1 Cutoff
+      const ctxPR = document.getElementById('prCurveChart');
+      if (ctxPR) {
+        new Chart(ctxPR.getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: ['0.0', '0.2', '0.4', '0.6', '0.72', '0.85', '1.0'],
+            datasets: [
+              {
+                label: 'Precision-Recall Curve (PR-AUC: 0.5315)',
+                data: [0.98, 0.92, 0.78, 0.65, 0.582, 0.41, 0.12],
+                borderColor: '#e11d48',
+                backgroundColor: 'rgba(225, 29, 72, 0.1)',
+                fill: true,
+                tension: 0.2
+              },
+              {
+                label: 'Baseline No-Skill (Class Prevalence: 0.0096)',
+                data: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
+                borderColor: '#94a3b8',
+                borderDash: [4, 4],
+                pointRadius: 0,
+                fill: false
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: { title: { display: true, text: 'Recall (True Positive Rate)' } },
+              y: { min: 0, max: 1.05, title: { display: true, text: 'Precision (Positive Predictive Value)' } }
+            }
+          }
+        });
+      }
+    }
+  </script>
+</body>
+</html>

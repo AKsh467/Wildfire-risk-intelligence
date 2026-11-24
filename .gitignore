@@ -1,0 +1,45 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Data directories (raw, interim, processed data shouldn't be committed, except deployed JSON files)
+data/raw/*
+!data/raw/.gitkeep
+!data/raw/firms_nrt/
+!data/raw/firms_nrt/live_24h.json
+data/interim/*
+!data/interim/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+!data/processed/analytics_summary.json
+!web/public/data/*
+
+# Model weights and artifacts
+models/*
+!models/.gitkeep
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Spark warehouse / metastore logs
+spark-warehouse/
+derby.log
+metastore_db/
+
+# Streamlit config / cache
+.streamlit/
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+.env

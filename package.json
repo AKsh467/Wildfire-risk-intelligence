@@ -1,0 +1,23 @@
+{
+  "name": "wildfire-risk-intelligence",
+  "version": "1.0.0",
+  "description": "Wildfire Risk Intelligence & Hotspot Analytics Platform",
+  "main": "web/server.js",
+  "scripts": {
+    "start": "node web/server.js",
+    "dev": "node web/server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "wildfire",
+    "remote-sensing",
+    "nasa-firms",
+    "viirs",
+    "pyspark",
+    "machine-learning"
+  ],
+  "author": "Wildfire Analytics Team (Bennett University)",
+  "license": "MIT"
+}

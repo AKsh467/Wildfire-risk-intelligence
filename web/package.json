@@ -1,0 +1,13 @@
+{
+  "name": "wildfire-risk-intelligence-ui",
+  "version": "1.0.0",
+  "description": "Node.js Web Interface for Wildfire Risk Intelligence and Hotspot Analytics",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["wildfire", "analytics", "remote-sensing", "pyspark", "nodejs"],
+  "author": "Wildfire Analytics Team",
+  "license": "MIT"
+}
